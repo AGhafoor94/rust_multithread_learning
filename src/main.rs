@@ -9,6 +9,21 @@ fn main() {
     println!("Hello, world!");
     thread_one.join().unwrap();
     thread_two.join().unwrap();
+
+    let numbers_in_array: [i16; 4] = [1, 2, 3, 4];
+
+    // closures
+
+    thread::spawn(move || {
+        for num in numbers_in_array {
+            println!("{num}");
+        }
+    })
+    .join()
+    .unwrap();
+
+    // the above clouser. the ownership of numbers_in_array is transferred to the new spawned thread because we used a move closure. if not used "move", it would have used numbers_in_array by reference.
+    // the spawn function has a 'static lifetime bound on its argument type.
 }
 fn test_spawn_thread() {
     println!("From another thread");

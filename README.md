@@ -7,3 +7,5 @@
 
 - 2: Joining threads
   the join() method waits until the thread has finished executing and returns std::thread::Result. If thread hasn't successfully finished it's function because it's panicked, will contain the panic message.
+
+- 3: Closures in thread spawn

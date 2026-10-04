@@ -1,12 +1,14 @@
 use std::{
     println,
-    thread::{self, ThreadId},
+    thread::{self, JoinHandle, ThreadId},
 };
 
 fn main() {
-    thread::spawn(test_spawn_thread);
-    thread::spawn(test_spawn_thread);
+    let thread_one: JoinHandle<()> = thread::spawn(test_spawn_thread);
+    let thread_two: JoinHandle<()> = thread::spawn(test_spawn_thread);
     println!("Hello, world!");
+    thread_one.join().unwrap();
+    thread_two.join().unwrap();
 }
 fn test_spawn_thread() {
     println!("From another thread");

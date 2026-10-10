@@ -1,5 +1,7 @@
 use std::{
-    assert_eq, dbg, println,
+    assert_eq,
+    cell::Cell,
+    dbg, println,
     thread::{self, JoinHandle, ThreadId},
 };
 
@@ -158,4 +160,70 @@ fn shared_ownership_and_reference_counting() {
     thread::spawn(move || dbg!(atomic_rc_b_value));
 }
 
-fn borrowing_and_data_races() {}
+fn borrowing_and_data_races() {
+    /*
+        Immutable borrowing:
+            Borrowing something with & gives an immutable reference, which can be copied. Access to the data it references is shared between all copies of such a reference.
+
+        Mutable borrowing:
+            Borrowing something with &mut gives a mutable reference. A mutable borrow guarantees it's the only active borrow of the data.
+
+        These 2 together fully prevent data races: situations where one thread is mutating data while another is concurrently accessing it.
+        Data races are generally undefined behaviour which means the compiler doesn't need to take these situations into account.
+
+    */
+
+    let example_a_borrowing: i32 = 100;
+    let mut example_b_borrowing: i32 = 200;
+    example_using_borrowing_rules(&example_a_borrowing, &mut example_b_borrowing);
+}
+
+fn example_using_borrowing_rules(a: &i32, b: &mut i32) {
+    /*
+        example where the compiler can make a useful assumption using the borrowing rules: example_using_borrowing_rules
+        we get an immutable reference to an integar and store the value of the integar both before and after incrementing the integar that b refers to.
+
+    */
+    let before: i32 = *a;
+
+    *b += 1;
+    let after: i32 = *a;
+
+    if before != after {
+        println!("Before not equals after") // never happens
+    }
+}
+fn interior_mutability() {
+    /*
+        Interior Mutability:
+            A data type with interior mutability slightly bends the borrowing rules. Under certain conditions, those types can allow mutation through an "immutable" reference.
+            In "Reference Counting (Rc)" and Arc mutate a reference counter even though there might be multiple clones all using the same reference counter
+            As soon as interior mutable mutable types are involved, calling a reference "immutable" or "mutable" becomes confusing and inaccurate since both can be mutated through both.
+            The more accurate terms are "shared" and "exclusive": a shared reference (&T) can be copied and shared with others, wile an exclusive reference (&mut T) guarantees it's the only exclusive borrowing of that T.
+            For most types, shared references don't allow mutation, but there are exceptions.
+
+            this only bends the riles of shared borrowing to allow mutation when shared. Doesn't change anything about exclusive borrowing. Exclusive borrowing still guarantees that there are no other active borrows.
+
+        (1) Cell:
+                std::cell::Cell<T> wraps a T but allows mutations through a shared reference. To avoid undefined behaviour only allows you to copy the value out (if T is Copy) or replace it with another value as a whole.
+                It can only be used within a single thread.
+
+                now possible if condition to be true because Cell<i32> has interior mutability. both a and b might refer to the same value such that mutating through b might affect a. still may assume that no other threads are accessing the cells concurrently
+                restrictions on Cell aren't always easy to work with. Can't directly let us borrow the value it holds. need to move a value out leaving something in its place, modify it and put it back to mutate the contents
+
+    */
+    let example_a_borrowing: std::cell::Cell<i32> = std::cell::Cell::new(100);
+    let mut example_b_borrowing: std::cell::Cell<i32> = std::cell::Cell::new(200);
+    example_using_cell(&example_a_borrowing, &mut example_b_borrowing);
+}
+fn example_using_cell(a: &std::cell::Cell<i32>, b: &mut std::cell::Cell<i32>) {
+    let before: i32 = a.get();
+
+    b.set(b.get() + 1);
+
+    let after: i32 = a.get();
+
+    if before != after {
+        println!("Before not equals after"); // might happen
+    }
+}

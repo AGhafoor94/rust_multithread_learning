@@ -3,6 +3,7 @@ use std::{
     cell::Cell,
     dbg, println,
     thread::{self, JoinHandle, ThreadId},
+    vec,
 };
 
 fn main() {
@@ -20,6 +21,8 @@ fn main() {
 
     // Scoped threads
     scoped_threads();
+
+    interior_mutability();
 }
 fn join_threads() {
     let thread_one: JoinHandle<()> = thread::spawn(test_spawn_thread);
@@ -159,7 +162,6 @@ fn shared_ownership_and_reference_counting() {
     thread::spawn(move || dbg!(atomic_rc_a_value));
     thread::spawn(move || dbg!(atomic_rc_b_value));
 }
-
 fn borrowing_and_data_races() {
     /*
         Immutable borrowing:
@@ -177,7 +179,6 @@ fn borrowing_and_data_races() {
     let mut example_b_borrowing: i32 = 200;
     example_using_borrowing_rules(&example_a_borrowing, &mut example_b_borrowing);
 }
-
 fn example_using_borrowing_rules(a: &i32, b: &mut i32) {
     /*
         example where the compiler can make a useful assumption using the borrowing rules: example_using_borrowing_rules
@@ -211,10 +212,27 @@ fn interior_mutability() {
                 now possible if condition to be true because Cell<i32> has interior mutability. both a and b might refer to the same value such that mutating through b might affect a. still may assume that no other threads are accessing the cells concurrently
                 restrictions on Cell aren't always easy to work with. Can't directly let us borrow the value it holds. need to move a value out leaving something in its place, modify it and put it back to mutate the contents
 
+        (2) RefCell:
+                std::cell::RefCell does allow you to borrow its contents at a small runtime cost. A RefCell<T> doesn't only hold a T but also holds a counter that keeps track of any outstanding borrows. If you try to borrow it while it's already
+                mutably borrowed (or vice-versa), it will panic which avoids undefined behaviour. Can only be used in a single thread.
+                Borrowing the contents of RefCell is done by calling borrow or borrow_mut
+
     */
+
+    // (1)
+
     let example_a_borrowing: std::cell::Cell<i32> = std::cell::Cell::new(100);
     let mut example_b_borrowing: std::cell::Cell<i32> = std::cell::Cell::new(200);
     example_using_cell(&example_a_borrowing, &mut example_b_borrowing);
+
+    let example_cell_vec_mutate: std::cell::Cell<Vec<i32>> = std::cell::Cell::new(vec![100, 200]);
+    example_using_cell_to_mutate(&example_cell_vec_mutate);
+
+    // (2)
+
+    let example_ref_cell_vec_mutate: std::cell::RefCell<Vec<i32>> =
+        std::cell::RefCell::new(vec![1, 2, 3]);
+    example_using_ref_cell(&example_ref_cell_vec_mutate);
 }
 fn example_using_cell(a: &std::cell::Cell<i32>, b: &mut std::cell::Cell<i32>) {
     let before: i32 = a.get();
@@ -226,4 +244,18 @@ fn example_using_cell(a: &std::cell::Cell<i32>, b: &mut std::cell::Cell<i32>) {
     if before != after {
         println!("Before not equals after"); // might happen
     }
+}
+fn example_using_cell_to_mutate(value: &std::cell::Cell<Vec<i32>>) {
+    // replaces the contents of Cell with an empty vec
+
+    let mut value_two: Vec<i32> = value.take();
+
+    value_two.push(300);
+
+    // put modified Vec back
+
+    value.set(value_two);
+}
+fn example_using_ref_cell(value: &std::cell::RefCell<Vec<i32>>) {
+    value.borrow_mut().push(200); // we can modify it directly
 }

@@ -96,3 +96,39 @@
   - AtomicPtr<T>
 
   Since they are so limited in size, atomics often don't directly contain the information that needs to be shared between threads. They are often used as a tool to make it possible to share other - often bigger - things between threads. When atomics are used to say something about other data, things can get complicated.
+
+- 10: UnsafeCell:
+  An UnsafeCell is the primitive building block for interior mutability
+
+  UnsafeCell<T> wraps a T but doesn't come with any conditions or restrictions to avoid undefined behaviour. Its get() method just gives a raw pointer to the value it wraps. only used in unsafe{}. Leaves it up to the user to use in a a way that doesn't cause any undefined behaviour.
+
+  Not used directly but wrapped in another type that provides safety through a limited interface e.g. Cell or Mutex. All types with interior mutabiltiy - including all types above are built on UnsafeCell.
+
+- 11: Thread Safety: Send and Sync:
+  2 special traits to keep track of which types can be safely used across threads:
+  - Send:
+    A type is Send if it can be sent to another thread. If ownership of a value of that type can be transferred to another thread. Arc<u32> is send but Rc<u32> isn't.
+  - Sync:
+    A type is Sync if it can be shared with another thread. A type T is Sync if a shared reference to that type &T is Send. u32 is Sync but Cell<u32> isn't. Cell<u32> is Send.
+    All primitive types e.g. i32, bool, str are both Send and Sync.
+    Both of these traits are auto traits. Automatically implemented for types based on their fields. A struct with fields are all Send and Sync, it is also Send and Sync.
+
+  Way to opt out of either of these is to add a field to the type that doesn't implement the trait. A special std::marker::PhantomData<T> type. That type is treated by the compiler as a T. Doesn't exist at runtime and is a zero-sized type.
+
+  Function thread_safety_phanton_data has struct which can be both Send and Sync if handle was the only field. Added a zero-sized PhantomData<Cell<()>> field. This is treated as Cell<()>. Cell<()> isn't Sync. Still Send as all fields implement Send.
+
+  The way to opt into either of the traits is the same way as any other traits. Using impl block. Need to add unsafe block. This is a promise to the compiler.
+
+- 11: Locking: Mutexes and RwLocks
+  Most commonly used tool for sharing (mutable) data between threads is a mutex (mutual exclusion). Mutex is used to ensure threads have exlusive access to some data by temporarily blocking other threads that try to access it at the same time.
+
+  Mutex only has 2 states. Locked and Unlocked.
+
+  When a thread locks an unlocked mutex, the mutex is marked as locked and the thread can immediately continue. When a thread attempts to lock an already locked mutex, the operation will block. The thread is put to sleep while it waits for the mutex to be unlocked. Unlocking is only possible on a locked mutex and should only be done by the same thread that locked it. If other threads are waiting for the lock mutex, unlocking will cause one of the threads to be woken up so it can try to lock the mutex again.
+
+  Protecting data with a mutex is the agreement between all threads that they will only access the data when they have the mutex locked.
+
+- 12: Rusts Mutex:
+  std provides functionality through std::sync::Mutex<T>. it's a generic over a type T which is the type of the data the mutex is protecting. Making T part of the mutex, the data can only be accessed through the mutex allowing for a safe interface that can guarantee all threads will uphold the agreement.
+
+  Unlocking a locked mutex from it's original thread. it doesn't have unlock() but its lock() method returns a special type called a MutexGuard. This guard represents the guarantee that we have locked the mutex. Behaves like an exclusive reference through the DerefMut trait. Giving exclusive access to the data the mutex products. Unlocking the mutex is done by dropping the guard. Drop implementation of the guard will unlock the mutex.

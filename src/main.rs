@@ -51,7 +51,7 @@ fn spawn_thread_closures() {
     .unwrap();
 
     /*
-        the above clouser. the ownership of numbers_in_array is transferred to the new spawned thread because we used a move closure. if not used "move", it would have used numbers_in_array by reference.
+        the above closure. the ownership of numbers_in_array is transferred to the new spawned thread because we used a move closure. if not used "move", it would have used numbers_in_array by reference.
         the spawn function has a 'static lifetime bound on its argument type.
     */
 
@@ -258,4 +258,28 @@ fn example_using_cell_to_mutate(value: &std::cell::Cell<Vec<i32>>) {
 }
 fn example_using_ref_cell(value: &std::cell::RefCell<Vec<i32>>) {
     value.borrow_mut().push(200); // we can modify it directly
+}
+fn mutex_and_rwlock() {
+
+    /*
+        An RwLock or reader-writer lock is the concurrent version of RefCell. An RwLock<T> holds a T and tracks any outstanding borrorws.
+        unlike RefCell, it doesn't panic on conflicting borrows. It blocks the current thread - putting it to sleep - while waiting for conflicting borrows to disappear.
+        We will have to wait for our turn with the data, after the other threads are done with it.
+
+        Borrowing the contents of an RwLock is called locking. Locking it we temporarily block concurrent conflicting borrows, allowing us to borrow it without causing data races.
+
+        A Mutex is similar but slightly simpler. Instead of keeping track of the number of shared and exclusive borrows like RwLock, it only allows exclusive borrows.
+    */
+}
+fn atomics() {
+    /*
+        The atomic types represent the concurrent version of a Cell. Like a Cell, they avoid undefined behaviour by making us copy values in and out as a whole without letting us borrow the contents directly.
+
+        Unlike Cell, they cannot be of arbitrary size. Because of this, there isn't a generic Atomic<T> type for any T, but there are only specific atomic types such as:
+            - AtomicU32
+            - AtomicPtr<T>
+
+        Since they are so limited in size, atomics often don't directly contain the information that needs to be shared between threads. They are often used as a tool to make it possible to share other - often bigger -
+        things between threads. When atomics are used to say something about other data, things can get complicated.
+    */
 }

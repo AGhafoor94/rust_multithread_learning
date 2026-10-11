@@ -90,8 +90,9 @@
 
 - 9: Atomics:
   The atomic types represent the concurrent version of a Cell. Like a Cell, they avoid undefined behaviour by making us copy values in and out as a whole without letting us borrow the contents directly.
-  - Unlike Cell, they cannot be of arbitrary size. Because of this, there isn't a generic Atomic<T> type for any T, but there are only specific atomic types such as:
-    - AtomicU32
-    - AtomicPtr<T>
+
+  Unlike Cell, they cannot be of arbitrary size. Because of this, there isn't a generic Atomic<T> type for any T, but there are only specific atomic types such as:
+  - AtomicU32
+  - AtomicPtr<T>
 
   Since they are so limited in size, atomics often don't directly contain the information that needs to be shared between threads. They are often used as a tool to make it possible to share other - often bigger - things between threads. When atomics are used to say something about other data, things can get complicated.

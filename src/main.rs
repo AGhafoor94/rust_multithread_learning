@@ -5,6 +5,7 @@ use std::{
     marker::PhantomData,
     println,
     thread::{self, JoinHandle, ThreadId},
+    time::Duration,
     vec,
 };
 
@@ -314,6 +315,9 @@ fn rust_mutex_locking_and_unlocking() {
                     *guard += 1;
                 }
                 // guard dropped
+                drop(guard);
+                // thread sleep for a second
+                thread::sleep(Duration::from_secs(1));
             });
         }
     });

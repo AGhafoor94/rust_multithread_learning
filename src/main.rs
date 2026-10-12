@@ -25,6 +25,8 @@ fn main() {
     scoped_threads();
 
     interior_mutability();
+
+    rust_mutex_locking_and_unlocking();
 }
 fn join_threads() {
     let thread_one: JoinHandle<()> = thread::spawn(test_spawn_thread);
@@ -296,4 +298,26 @@ fn thread_safety_phanton_data() {
 
     unsafe impl Send for send_and_sync_implement_send_sync {}
     unsafe impl Sync for send_and_sync_implement_send_sync {}
+}
+fn rust_mutex_locking_and_unlocking() {
+    // Mutex to protect the integar
+    let new_mutex: std::sync::Mutex<i32> = std::sync::Mutex::new(0);
+    // create a scope of threads
+    thread::scope(|s| {
+        for _ in 0..10 {
+            // spawn 10 threads
+            s.spawn(|| {
+                // lock the mutex to obtain a MutexGuard which gives us guard to access the value
+                let mut guard: std::sync::MutexGuard<'_, i32> = new_mutex.lock().unwrap();
+                for _ in 0..100 {
+                    // add 1 to the value
+                    *guard += 1;
+                }
+                // guard dropped
+            });
+        }
+    });
+    // after threads are done, can remove the guard from the integar using into_inner(). This takes ownership of the mutex.
+    // assert_eq!(new_mutex.into_inner().unwrap(), 1000);
+    println!("MUTEX VALUE: {}", new_mutex.into_inner().unwrap());
 }

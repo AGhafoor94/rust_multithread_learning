@@ -132,3 +132,5 @@
   std provides functionality through std::sync::Mutex<T>. it's a generic over a type T which is the type of the data the mutex is protecting. Making T part of the mutex, the data can only be accessed through the mutex allowing for a safe interface that can guarantee all threads will uphold the agreement.
 
   Unlocking a locked mutex from it's original thread. it doesn't have unlock() but its lock() method returns a special type called a MutexGuard. This guard represents the guarantee that we have locked the mutex. Behaves like an exclusive reference through the DerefMut trait. Giving exclusive access to the data the mutex products. Unlocking the mutex is done by dropping the guard. Drop implementation of the guard will unlock the mutex.
+
+  Function rust_mutex_locking_and_unlocking. A mutex protecting an integar, spawning 10 threads to each increment the integar 100 times. Each thread will first lock the mutex to obtain a MutexGuard and then use a guard to access the integar and mofify it. The guard increments 1 and then after scope is dropped. Take ownership after the scope by using into_inner().

@@ -134,3 +134,8 @@
   Unlocking a locked mutex from it's original thread. it doesn't have unlock() but its lock() method returns a special type called a MutexGuard. This guard represents the guarantee that we have locked the mutex. Behaves like an exclusive reference through the DerefMut trait. Giving exclusive access to the data the mutex products. Unlocking the mutex is done by dropping the guard. Drop implementation of the guard will unlock the mutex.
 
   Function rust_mutex_locking_and_unlocking. A mutex protecting an integar, spawning 10 threads to each increment the integar 100 times. Each thread will first lock the mutex to obtain a MutexGuard and then use a guard to access the integar and mofify it. The guard increments 1 and then after scope is dropped. Take ownership after the scope by using into_inner().
+
+- 12: Lock Poisoning:
+  unwrap() relates to lock poisoning. A Mutex in Rust gets marked as poisoned when a thread panics while holding the lock. When that happens, the Mutex will no longer be locked, calling it's lock method will Err indicating a poisoned lock.
+
+  Calling lock() on a poisoned mutex locks the mutex but Err returned by this is of type MutexGuard.

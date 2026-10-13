@@ -287,7 +287,7 @@ fn atomics() {
         Since they are so limited in size, atomics often don't directly contain the information that needs to be shared between threads. They are often used as a tool to make it possible to share other - often bigger - things between threads. When atomics are used to say something about other data, things can get complicated.
     */
 }
-fn thread_safety_phanton_data() {
+fn thread_safety_phantom_data() {
     struct send_and_sync_with_phantom_data {
         handler: i32,
         _dont_sync: PhantomData<Cell<()>>,

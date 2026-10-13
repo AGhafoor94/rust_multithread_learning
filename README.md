@@ -115,7 +115,7 @@
 
   Way to opt out of either of these is to add a field to the type that doesn't implement the trait. A special std::marker::PhantomData<T> type. That type is treated by the compiler as a T. Doesn't exist at runtime and is a zero-sized type.
 
-  Function thread_safety_phanton_data has struct which can be both Send and Sync if handle was the only field. Added a zero-sized PhantomData<Cell<()>> field. This is treated as Cell<()>. Cell<()> isn't Sync. Still Send as all fields implement Send.
+  Function thread_safety_phantom_data has struct which can be both Send and Sync if handle was the only field. Added a zero-sized PhantomData<Cell<()>> field. This is treated as Cell<()>. Cell<()> isn't Sync. Still Send as all fields implement Send.
 
   The way to opt into either of the traits is the same way as any other traits. Using impl block. Need to add unsafe block. This is a promise to the compiler.
 

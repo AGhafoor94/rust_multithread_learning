@@ -2,16 +2,24 @@
 
 ## Progress
 
+### Spawning Threads
+
 - 1: Spawning threads
   thread::spawn(function) will spawj a thread and show their thread id (ThreadId)
 
+### Joining Threads
+
 - 2: Joining threads
   the join() method waits until the thread has finished executing and returns std::thread::Result. If thread hasn't successfully finished it's function because it's panicked, will contain the panic message.
+
+### Closures in Thread Spawn
 
 - 3: Closures in thread spawn
   like thread::spawn(||{closure}).join().unwrap()
   thread::spawn(move || {closure}).join().unwrap()
   The ownership of variable is transferred to the new spawned thread because we used a move closure. if not used "move", it would have used variable by reference. The spawn function has a 'static lifetime bound on its argument type.
+
+### Scoped Threads
 
 - 4: Scoped threads
   If we know for sure that a spawned thread will definitely not outlive a certain scope, that thread could safely borrow things that don't live forever e.g. variables, as long as they outlive that scope.
@@ -20,6 +28,8 @@
   We use scope to spawn scopes. The closure can borrow local variables like numbers_array
   When the scope ends, all threads that haven't been joined yet are automatically joined
   both threads spawned above access numbers_array but don't modify it
+
+### Shared Ownership and Reference Counting (Rw)
 
 - 5: Shared ownership and reference counting (Rw)
   Sharing data between threads without move (transferring owenership) and keeping value alive for longest thread
@@ -41,6 +51,8 @@
   sending an Rc to another thread would return a compiler error. use std::sync::Arc "atomically reference counted". Identical to Rc but guarantees that modifications to the reference
   counter are indivisible atomic operations, safe to use with multiple threads
 
+### Borrowing and Data Races
+
 - 6: Borrowing and data races:
   - Immutable borrowing:
     Borrowing something with & gives an immutable reference, which can be copied. Access to the data it references is shared between all copies of such a reference.
@@ -53,6 +65,8 @@
 
     example where the compiler can make a useful assumption using the borrowing rules: example_using_borrowing_rules
     we get an immutable reference to an integar and store the value of the integar both before and after incrementing the integar that b refers to.
+
+### Interior Mutability
 
 - 7: Interior Mutability
 
@@ -77,6 +91,8 @@
     mutably borrowed (or vice-versa), it will panic which avoids undefined behaviour. Can only be used in a single thread.
     Borrowing the contents of RefCell is done by calling borrow or borrow_mut
 
+### Mutex and RwLock
+
 - 8: Mutex and RwLock:
   An RwLock or reader-writer lock is the concurrent version of RefCell. An RwLock<T> holds a T and tracks any outstanding borrorws.
 
@@ -88,6 +104,8 @@
 
   A Mutex is similar but slightly simpler. Instead of keeping track of the number of shared and exclusive borrows like RwLock, it only allows exclusive borrows.
 
+### Atomics
+
 - 9: Atomics:
   The atomic types represent the concurrent version of a Cell. Like a Cell, they avoid undefined behaviour by making us copy values in and out as a whole without letting us borrow the contents directly.
 
@@ -97,12 +115,18 @@
 
   Since they are so limited in size, atomics often don't directly contain the information that needs to be shared between threads. They are often used as a tool to make it possible to share other - often bigger - things between threads. When atomics are used to say something about other data, things can get complicated.
 
+### UnsafeCell
+
 - 10: UnsafeCell:
   An UnsafeCell is the primitive building block for interior mutability
 
   UnsafeCell<T> wraps a T but doesn't come with any conditions or restrictions to avoid undefined behaviour. Its get() method just gives a raw pointer to the value it wraps. only used in unsafe{}. Leaves it up to the user to use in a a way that doesn't cause any undefined behaviour.
 
   Not used directly but wrapped in another type that provides safety through a limited interface e.g. Cell or Mutex. All types with interior mutabiltiy - including all types above are built on UnsafeCell.
+
+### Thread Safety
+
+#### Send and Sync
 
 - 11: Thread Safety: Send and Sync:
   2 special traits to keep track of which types can be safely used across threads:
@@ -119,6 +143,8 @@
 
   The way to opt into either of the traits is the same way as any other traits. Using impl block. Need to add unsafe block. This is a promise to the compiler.
 
+### Locking: Mutexes and RwLocks
+
 - 11: Locking: Mutexes and RwLocks
   Most commonly used tool for sharing (mutable) data between threads is a mutex (mutual exclusion). Mutex is used to ensure threads have exlusive access to some data by temporarily blocking other threads that try to access it at the same time.
 
@@ -128,6 +154,8 @@
 
   Protecting data with a mutex is the agreement between all threads that they will only access the data when they have the mutex locked.
 
+### Rusts Mutex
+
 - 12: Rusts Mutex:
   std provides functionality through std::sync::Mutex<T>. it's a generic over a type T which is the type of the data the mutex is protecting. Making T part of the mutex, the data can only be accessed through the mutex allowing for a safe interface that can guarantee all threads will uphold the agreement.
 
@@ -135,7 +163,9 @@
 
   Function rust_mutex_locking_and_unlocking. A mutex protecting an integar, spawning 10 threads to each increment the integar 100 times. Each thread will first lock the mutex to obtain a MutexGuard and then use a guard to access the integar and mofify it. The guard increments 1 and then after scope is dropped. Take ownership after the scope by using into_inner().
 
-- 12: Lock Poisoning:
+### Lock Poisoning
+
+- 13: Lock Poisoning:
   unwrap() relates to lock poisoning. A Mutex in Rust gets marked as poisoned when a thread panics while holding the lock. When that happens, the Mutex will no longer be locked, calling it's lock method will Err indicating a poisoned lock.
 
   Calling lock() on a poisoned mutex locks the mutex but Err returned by this is of type MutexGuard.

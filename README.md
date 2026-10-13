@@ -169,3 +169,22 @@
   unwrap() relates to lock poisoning. A Mutex in Rust gets marked as poisoned when a thread panics while holding the lock. When that happens, the Mutex will no longer be locked, calling it's lock method will Err indicating a poisoned lock.
 
   Calling lock() on a poisoned mutex locks the mutex but Err returned by this is of type MutexGuard.
+
+### Reader-Writer Lock
+
+- 14: Reader-Writer Lock:
+  A mutex is only concerened with exclusive access. MutexGuard will provide an exclusive reference (&mut T) to the protected data even if we only wanted to look at the data and a shared reference (&T).
+
+  Reader-Writer Lock is a bit more complicated version of Mutex. This understands the difference between exclusive and shared access. This can provide 3 states:
+  - Unlocked
+  - Locked by a single writer (exclusive access)
+  - Locked by any number of readers (shared access)
+
+  Commonly used for data that is often read by multiple threads but only updated once in a while.
+  std::sync::RwLock<T>. Works similarly to the standard Mutex but it's interface is split in 2 parts. Instead of a single lock(), it has a read() and write(). Comes with 2 guard types, one for readers and one for writers.
+  - Reader: RwLockReadGuard - implements DerefMut
+  - Writer: RwLockWriteGuard
+
+  RwLockReadGuard implements DerefMut to behave like an exclusive reference. Effectively the multi-threaded version of RefCell. Dynamically tracking number of references to make sure the borrow rules are upheld.
+
+  Mutex<T> & RwLock<T> require T to Send. The can e used to send a T to another thread. RwLock<T> requires T to also implement Sync because it allows multiple threads to hold a shared reference (&T) to the protected data.

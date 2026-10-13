@@ -1,10 +1,11 @@
 use std::{
     assert_eq,
     cell::Cell,
+    collections::VecDeque,
     dbg,
     marker::PhantomData,
     println,
-    thread::{self, JoinHandle, ThreadId},
+    thread::{self, JoinHandle, ScopedJoinHandle, ThreadId},
     time::Duration,
     vec,
 };
@@ -324,4 +325,31 @@ fn rust_mutex_locking_and_unlocking() {
     // after threads are done, can remove the guard from the integar using into_inner(). This takes ownership of the mutex.
     // assert_eq!(new_mutex.into_inner().unwrap(), 1000);
     println!("MUTEX VALUE: {}", new_mutex.into_inner().unwrap());
+}
+fn thread_parking() {
+    let thread_queue: std::sync::Mutex<std::collections::VecDeque<u32>> =
+        std::sync::Mutex::new(std::collections::VecDeque::new());
+    thread::scope(|s| {
+        // consuming thread
+
+        let thread: ScopedJoinHandle<'_, _> = s.spawn(|| {
+            loop {
+                let item: Option<u32> = thread_queue.lock().unwrap().pop_back();
+
+                if let Some(item) = item {
+                    dbg!(item);
+                } else {
+                    thread::park();
+                }
+            }
+        });
+
+        // producing thread
+
+        for i in 0.. {
+            thread_queue.lock().unwrap().push_back(i);
+            thread.thread().unpark();
+            thread::sleep(Duration::from_secs(1));
+        }
+    })
 }

@@ -188,3 +188,19 @@
   RwLockReadGuard implements DerefMut to behave like an exclusive reference. Effectively the multi-threaded version of RefCell. Dynamically tracking number of references to make sure the borrow rules are upheld.
 
   Mutex<T> & RwLock<T> require T to Send. The can e used to send a T to another thread. RwLock<T> requires T to also implement Sync because it allows multiple threads to hold a shared reference (&T) to the protected data.
+
+### Waiting: Parking and Condition Values
+
+- 15: Waiting: Parking and Condition Values:
+  When data is mutated by multiple threads there are many situations where they would need to wait for some event for some condition about the data to become true e.g. have a Mutex protecting a vec might want to wait until it contains anything.
+
+  While a mutex allows threads to wait until it becomes unlocked, it doesn't provide funtionality for waiting for any other conditions. If mutex was the only option, would have to keep locking the mutex to repeatedly check if there is anything in the Vec.
+
+#### Thread Parking:
+
+- 15_1: Thread Parking:
+  A thread can park itself (puts it to sleep), stopping it from consuming any CPU cycles. Another thread can then unpack the parked thread.
+
+  std::thread::park(). For unparking, call unpark() on a Thread object representing the thread want to unpark. Object can be obtained from the join handle returned by spawn or by the thread through std::thread::current().
+
+  thread_parking() uses a mutex to share a queue between 2 threads. A new spawned thread will consume items from the queue while the main thread will insert a new item into the queue every second. Thread parking is used to make the consuming thread wait when the queue is empty.

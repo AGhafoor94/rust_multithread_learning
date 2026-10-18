@@ -464,7 +464,7 @@ fn example_process_item(i: i32) {
 }
 fn atomic_load_and_store_lazy_initialisation() -> u64 {
     static STATIC_X: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-    let mut mutable_x: u64 = X.load(std::sync::atomic::Ordering::Relaxed);
+    let mut mutable_x: u64 = STATIC_X.load(std::sync::atomic::Ordering::Relaxed);
     if mutable_x == 0 {
         mutable_x = mutable_x + 100;
         STATIC_X.store(mutable_x, std::sync::atomic::Ordering::Relaxed);

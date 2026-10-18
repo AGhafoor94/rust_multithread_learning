@@ -1,5 +1,9 @@
 # Learning Rust Atomics and Multi-threaded
 
+## BOOK
+
+O'Reilly - Rust Atomics and Locks by Mara Bos
+
 ## Progress
 
 ### Spawning Threads
@@ -291,3 +295,6 @@
       Using scoped threads in this function which will automatically join threads and allow us to borrow local variables. Everytime the background_thread finishes proccessing an item, it stores the number of processed items in AtomicUsize while the main thread shows that number to the user to inform them of progress around once per second. When the main thread sees 100 items have been processed, it exits scope which then joins the background_thread and informs the user everything is done.
       - 1_2_2_1 - Synchronisation:
         Once the last item is processed, might take up to a full second for the main thread to know adding unnecessary delay at the end. Can use thread parking to wake the main thread from its sleep when there is new information it might need.
+    - 1_2_3 - Example: Lazy Initialisation
+      Getting value (x) from reading a file, obtaining from operating system or calculating another way that is expected to be constant during a run of the program. Since it isn't expected to change, it can be requested or calculated only the first time it's needed and remember the result. The first thread that needs it will have to calculate the value but then store it in an atomic static to make it available to all threads and itself for later.
+      The first thread to call atomic_load_and_store_lazy_initialisation() will check static X and see it's still zero.

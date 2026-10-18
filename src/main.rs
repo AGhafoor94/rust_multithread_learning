@@ -1,7 +1,6 @@
 use std::{
     assert_eq,
     cell::Cell,
-    collections::VecDeque,
     dbg,
     marker::PhantomData,
     println,
@@ -29,6 +28,8 @@ fn main() {
     interior_mutability();
 
     rust_mutex_locking_and_unlocking();
+
+    atomic_load_and_store_progress_reporting();
 }
 fn join_threads() {
     let thread_one: JoinHandle<()> = thread::spawn(test_spawn_thread);
@@ -133,16 +134,16 @@ fn shared_ownership_and_reference_counting() {
 
     // (1)
 
-    static static_val: [u16; 4] = [1, 2, 3, 4];
-    thread::spawn(|| dbg!(static_val));
-    thread::spawn(|| dbg!(static_val));
+    static STATIC_VALUE: [u16; 4] = [1, 2, 3, 4];
+    thread::spawn(|| dbg!(STATIC_VALUE));
+    thread::spawn(|| dbg!(STATIC_VALUE));
 
     // (2)
 
-    let leaking_val: &'static [i32; 4] = Box::leak(Box::new([1, 2, 3, 4]));
+    let leaking_value: &'static [i32; 4] = Box::leak(Box::new([1, 2, 3, 4]));
 
-    thread::spawn(move || dbg!(leaking_val));
-    thread::spawn(move || dbg!(leaking_val));
+    thread::spawn(move || dbg!(leaking_value));
+    thread::spawn(move || dbg!(leaking_value));
 
     // top we're only using reference not move by value. This is leaking memory and only runs to the end of the program
 
@@ -422,4 +423,33 @@ fn atmoic_load_and_store_stop_flag() {
 }
 fn atomic_load_and_store_progress_reporting() {
     // this example, we process 100 items one by one on a background_thread while main thread gives the user regular updates on progress
+
+    let number_done_processing: std::sync::atomic::AtomicUsize =
+        std::sync::atomic::AtomicUsize::new(0);
+
+    thread::scope(|s| {
+        // background_thread to process all 100 items
+
+        s.spawn(|| {
+            for i in 0..100 {
+                example_process_item(i);
+                number_done_processing
+                    .store((i + 1) as usize, std::sync::atomic::Ordering::Relaxed);
+            }
+        });
+
+        // main thread shows status updates every second
+        loop {
+            let number: usize = number_done_processing.load(std::sync::atomic::Ordering::Relaxed);
+            if number == 100 {
+                break;
+            }
+            println!("Working...{number}/100 done");
+            thread::sleep(Duration::from_secs(1));
+        }
+    });
+}
+fn example_process_item(i: i32) {
+    thread::sleep(Duration::from_secs(1));
+    println!("PROCESSING ITEM: {i}");
 }

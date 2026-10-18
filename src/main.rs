@@ -353,3 +353,33 @@ fn thread_parking() {
         }
     })
 }
+fn condition_variables() {
+    let mutex_queue: std::sync::Mutex<std::collections::VecDeque<i32>> =
+        std::sync::Mutex::new(std::collections::VecDeque::new());
+
+    let condvar_not_empty: std::sync::Condvar = std::sync::Condvar::new();
+
+    thread::scope(|s| {
+        s.spawn(|| {
+            loop {
+                let mut locked_queue: std::sync::MutexGuard<'_, std::collections::VecDeque<i32>> =
+                    mutex_queue.lock().unwrap();
+                let queue_item = loop {
+                    if let Some(queue_item) = locked_queue.pop_front() {
+                        break queue_item;
+                    } else {
+                        locked_queue = condvar_not_empty.wait(locked_queue).unwrap();
+                    }
+                };
+                drop(locked_queue);
+                dbg!(queue_item);
+            }
+        });
+
+        for i in 0.. {
+            mutex_queue.lock().unwrap().push_back(i);
+            condvar_not_empty.notify_one();
+            thread::sleep(Duration::from_secs(1));
+        }
+    });
+}

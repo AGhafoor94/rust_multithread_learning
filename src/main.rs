@@ -427,6 +427,9 @@ fn atomic_load_and_store_progress_reporting() {
     let number_done_processing: std::sync::atomic::AtomicUsize =
         std::sync::atomic::AtomicUsize::new(0);
 
+    // get main thread to park and unpark
+    let main_thread: std::thread::Thread = thread::current();
+
     thread::scope(|s| {
         // background_thread to process all 100 items
 
@@ -435,6 +438,9 @@ fn atomic_load_and_store_progress_reporting() {
                 example_process_item(i);
                 number_done_processing
                     .store((i + 1) as usize, std::sync::atomic::Ordering::Relaxed);
+                // Wake up main thread
+                // background thread unparks main thread after every status update
+                main_thread.unpark();
             }
         });
 
@@ -445,9 +451,12 @@ fn atomic_load_and_store_progress_reporting() {
                 break;
             }
             println!("Working...{number}/100 done");
-            thread::sleep(Duration::from_secs(1));
+            // thread::sleep(Duration::from_secs(1));
+            // park_timeout can be interrupted
+            thread::park_timeout(Duration::from_secs(1));
         }
     });
+    println!("DONE PROCESSING");
 }
 fn example_process_item(i: i32) {
     thread::sleep(Duration::from_secs(1));

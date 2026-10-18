@@ -289,3 +289,5 @@
     - 1_2_2 - Example: Progress Reporting:
       atomic_load_and_store_progress_reporting()
       Using scoped threads in this function which will automatically join threads and allow us to borrow local variables. Everytime the background_thread finishes proccessing an item, it stores the number of processed items in AtomicUsize while the main thread shows that number to the user to inform them of progress around once per second. When the main thread sees 100 items have been processed, it exits scope which then joins the background_thread and informs the user everything is done.
+      - 1_2_2_1 - Synchronisation:
+        Once the last item is processed, might take up to a full second for the main thread to know adding unnecessary delay at the end. Can use thread parking to wake the main thread from its sleep when there is new information it might need.

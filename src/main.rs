@@ -387,3 +387,39 @@ fn condition_variables() {
         }
     });
 }
+// basic operations: load and store
+/*
+    function signature:
+    impl std::sync::atomic::AtomicI32 {
+        pub fn load(&self, ordering: std::sync::atomic::Ordering) -> i32;
+        pub fn store(&self, value: i32, ordering: std::sync::atomic::Ordering);
+    }
+*/
+fn atmoic_load_and_store_stop_flag() {
+    // Stop flag
+    static STOP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+    // spawn thread to do work
+    let background_thread: JoinHandle<()> = thread::spawn(|| {
+        while !STOP.load(std::sync::atomic::Ordering::Relaxed) {
+            // do work
+            println!("Thread spawn do work until STOP flag");
+        }
+    });
+    // use the main thread to listen for user input
+    for line in std::io::stdin().lines() {
+        match line.unwrap().as_str() {
+            "help" => println!("Commands: help, stop"),
+            "stop" => break,
+            cmd => println!("Unknown command: {cmd:?}"),
+        }
+    }
+
+    // inform background thread to stop
+    STOP.store(true, std::sync::atomic::Ordering::Relaxed);
+    // wait until background thread finishes
+    background_thread.join().unwrap();
+}
+fn atomic_load_and_store_progress_reporting() {
+    // this example, we process 100 items one by one on a background_thread while main thread gives the user regular updates on progress
+}

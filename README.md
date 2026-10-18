@@ -253,3 +253,37 @@
   - Condvar::wait_timeout().
 
   Take in Duration arg. Time after which it should give up waiting for a notification and unconditionally wake up.
+
+### Atomics
+
+- Atomics
+  An operation that is indivisible, either fully completed or hasn't happened yet
+
+  Atomic operations do allow for different threads to safely read and modify the same variable. Either happens completely before or completely after another operation avoiding an undefined behaviour. All other concurrency primitives (e.g. Mutex, Condition Variable) are implemented using atomic operations.
+
+  Atomic operations are available as methods on the standard atomic types which live in std::sync::atomic. All have names starting with Atomic e.g.AtomicI32 or AtomicUsize. Depends on hardware architecture and sometimes the operating system but most platforms provide at least all atomic types up to the size of a pointer.
+
+  They allow notifications through a shared reference e.g. &AtomicU8 because of Interior Mutability. Each atomic type has the same interface with methods storing and loading methods for atomic "fetch-and-modify" operations and more advanced "compare-and-exchange" methods.
+
+  #### 1_1 - Memory Ordering:
+
+  Every atomic operation takes an argument of type std::sync::atomic::Ordering. This determines what guarantees we get about the relative ordering of operations. The simplest variant with the fewest guarantees is Relaxed which still guarantees consistency on a single atomic variable but doesn't promise anything about the relative order of operations between different variables.
+
+  This means that 2 threads might see operations on different variables happen in a different order e.g. 1 thread writes to one variable first and then to a second variable quickly after, another thread might see that happen in opposite order.
+
+  #### 1_2 - Atomic Load and Store Operations
+  - 1_2 - Atomic Load and Store Operations
+    These are basic operations:
+    - load
+    - store
+
+    Load automatically loads the value stored in the atomic variable and store atomically stores a new value in the variable. Store method takes in a shared reference (&T) rather than an exclusive reference (&mut T) even though it modifies the value.
+    - 1_2_1 - Example: Stop Flag:
+      This uses AtomicBool for a stop flag. This is used to inform other threads to stop running.
+      atomic_load_and_store_stop_flag()
+
+      In example, background_thread is running work while main thread allows the user to enter some commands. This example the only useful command is Stop. To make the background_thread to stop, the atomic STOP bool is used to communicate this condition to the background_thread. When foreground thread reads the STOP command, sets the flag to true which is checked by the background_thread before every new iteration. Main thread waits until background_thread is finished with its current iteration using the join() method.
+
+      Good for simple functions but if the work is stuck doing work for a long time that can result in a delay between the stop command and the program quitting.
+
+    - 1_2_2 - Example: Progress Reporting:

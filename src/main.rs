@@ -1,7 +1,6 @@
 use std::{
     assert_eq,
     cell::Cell,
-    collections::VecDeque,
     dbg,
     marker::PhantomData,
     println,
@@ -29,6 +28,8 @@ fn main() {
     interior_mutability();
 
     rust_mutex_locking_and_unlocking();
+
+    atomic_load_and_store_progress_reporting();
 }
 fn join_threads() {
     let thread_one: JoinHandle<()> = thread::spawn(test_spawn_thread);
@@ -133,16 +134,16 @@ fn shared_ownership_and_reference_counting() {
 
     // (1)
 
-    static static_val: [u16; 4] = [1, 2, 3, 4];
-    thread::spawn(|| dbg!(static_val));
-    thread::spawn(|| dbg!(static_val));
+    static STATIC_VALUE: [u16; 4] = [1, 2, 3, 4];
+    thread::spawn(|| dbg!(STATIC_VALUE));
+    thread::spawn(|| dbg!(STATIC_VALUE));
 
     // (2)
 
-    let leaking_val: &'static [i32; 4] = Box::leak(Box::new([1, 2, 3, 4]));
+    let leaking_value: &'static [i32; 4] = Box::leak(Box::new([1, 2, 3, 4]));
 
-    thread::spawn(move || dbg!(leaking_val));
-    thread::spawn(move || dbg!(leaking_val));
+    thread::spawn(move || dbg!(leaking_value));
+    thread::spawn(move || dbg!(leaking_value));
 
     // top we're only using reference not move by value. This is leaking memory and only runs to the end of the program
 
@@ -387,3 +388,114 @@ fn condition_variables() {
         }
     });
 }
+// basic operations: load and store
+/*
+    function signature:
+    impl std::sync::atomic::AtomicI32 {
+        pub fn load(&self, ordering: std::sync::atomic::Ordering) -> i32;
+        pub fn store(&self, value: i32, ordering: std::sync::atomic::Ordering);
+    }
+*/
+fn atmoic_load_and_store_stop_flag() {
+    // Stop flag
+    static STOP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+    // spawn thread to do work
+    let background_thread: JoinHandle<()> = thread::spawn(|| {
+        while !STOP.load(std::sync::atomic::Ordering::Relaxed) {
+            // do work
+            println!("Thread spawn do work until STOP flag");
+        }
+    });
+    // use the main thread to listen for user input
+    for line in std::io::stdin().lines() {
+        match line.unwrap().as_str() {
+            "help" => println!("Commands: help, stop"),
+            "stop" => break,
+            cmd => println!("Unknown command: {cmd:?}"),
+        }
+    }
+
+    // inform background thread to stop
+    STOP.store(true, std::sync::atomic::Ordering::Relaxed);
+    // wait until background thread finishes
+    background_thread.join().unwrap();
+}
+fn atomic_load_and_store_progress_reporting() {
+    // this example, we process 100 items one by one on a background_thread while main thread gives the user regular updates on progress
+
+    let number_done_processing: std::sync::atomic::AtomicUsize =
+        std::sync::atomic::AtomicUsize::new(0);
+
+    // get main thread to park and unpark
+    let main_thread: std::thread::Thread = thread::current();
+
+    thread::scope(|s| {
+        // background_thread to process all 100 items
+
+        s.spawn(|| {
+            for i in 0..100 {
+                example_process_item(i);
+                number_done_processing
+                    .store((i + 1) as usize, std::sync::atomic::Ordering::Relaxed);
+                // Wake up main thread
+                // background thread unparks main thread after every status update
+                main_thread.unpark();
+            }
+        });
+
+        // main thread shows status updates every second
+        loop {
+            let number: usize = number_done_processing.load(std::sync::atomic::Ordering::Relaxed);
+            if number == 100 {
+                break;
+            }
+            println!("Working...{number}/100 done");
+            // thread::sleep(Duration::from_secs(1));
+            // park_timeout can be interrupted
+            thread::park_timeout(Duration::from_secs(1));
+        }
+    });
+    println!("DONE PROCESSING");
+}
+fn example_process_item(i: i32) {
+    thread::sleep(Duration::from_secs(1));
+    println!("PROCESSING ITEM: {i}");
+}
+fn atomic_load_and_store_lazy_initialisation() -> u64 {
+    static STATIC_X: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    let mut mutable_x: u64 = X.load(std::sync::atomic::Ordering::Relaxed);
+    if mutable_x == 0 {
+        mutable_x = mutable_x + 100;
+        STATIC_X.store(mutable_x, std::sync::atomic::Ordering::Relaxed);
+    }
+    mutable_x
+}
+
+/*
+    Function signature using AtomicI32
+
+    impl AmoticI32 {
+        pub fn fetch_add(&self, v: i32, ordering: Ordering) -> i32;
+        pub fn fetch_sub(&self, v: i32, ordering: Ordering) -> i32;
+        pub fn fetch_or(&self, v: i32, ordering: Ordering) -> i32;
+        pub fn fetch_and(&self, v: i32, ordering: Ordering) -> i32;
+        pub fn fetch_nand(&self, v: i32, ordering: Ordering) -> i32;
+        pub fn fetch_xor(&self, v: i32, ordering: Ordering) -> i32;
+        pub fn fetch_max(&self, v: i32, ordering: Ordering) -> i32;
+        pub fn fetch_min(&self, v: i32, ordering: Ordering) -> i32;
+        pub fn swap(&self, v: i32, ordering: Ordering) -> i32; // fetch_store
+    }
+
+    swap just stores a new value regardless of the old value. swap is fetch_store
+*/
+
+fn atomic_fetch_and_modify_fetch_example() {
+    let a: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(100);
+    let b: i32 = a.fetch_add(152, std::sync::atomic::Ordering::Relaxed);
+    let c: i32 = a.load(std::sync::atomic::Ordering::Relaxed);
+
+    assert_eq!(b, 100);
+    assert_eq!(c, 250);
+}
+fn atomic_fetch_and_modify_progress_reporting_from_multiple_threads() {}

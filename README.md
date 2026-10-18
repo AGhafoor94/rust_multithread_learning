@@ -1,5 +1,9 @@
 # Learning Rust Atomics and Multi-threaded
 
+## BOOK
+
+O'Reilly - Rust Atomics and Locks by Mara Bos
+
 ## Progress
 
 ### Spawning Threads
@@ -253,3 +257,70 @@
   - Condvar::wait_timeout().
 
   Take in Duration arg. Time after which it should give up waiting for a notification and unconditionally wake up.
+
+### Atomics
+
+- Atomics
+  An operation that is indivisible, either fully completed or hasn't happened yet
+
+  Atomic operations do allow for different threads to safely read and modify the same variable. Either happens completely before or completely after another operation avoiding an undefined behaviour. All other concurrency primitives (e.g. Mutex, Condition Variable) are implemented using atomic operations.
+
+  Atomic operations are available as methods on the standard atomic types which live in std::sync::atomic. All have names starting with Atomic e.g.AtomicI32 or AtomicUsize. Depends on hardware architecture and sometimes the operating system but most platforms provide at least all atomic types up to the size of a pointer.
+
+  They allow notifications through a shared reference e.g. &AtomicU8 because of Interior Mutability. Each atomic type has the same interface with methods storing and loading methods for atomic "fetch-and-modify" operations and more advanced "compare-and-exchange" methods.
+
+  #### 1_1 - Memory Ordering:
+
+  Every atomic operation takes an argument of type std::sync::atomic::Ordering. This determines what guarantees we get about the relative ordering of operations. The simplest variant with the fewest guarantees is Relaxed which still guarantees consistency on a single atomic variable but doesn't promise anything about the relative order of operations between different variables.
+
+  This means that 2 threads might see operations on different variables happen in a different order e.g. 1 thread writes to one variable first and then to a second variable quickly after, another thread might see that happen in opposite order.
+
+  #### 1_2 - Atomic Load and Store Operations
+  - 1_2 - Atomic Load and Store Operations
+    These are basic operations:
+    - load
+    - store
+
+    Load automatically loads the value stored in the atomic variable and store atomically stores a new value in the variable. Store method takes in a shared reference (&T) rather than an exclusive reference (&mut T) even though it modifies the value.
+    - 1_2_1 - Example: Stop Flag:
+      This uses AtomicBool for a stop flag. This is used to inform other threads to stop running.
+      atomic_load_and_store_stop_flag()
+
+      In example, background_thread is running work while main thread allows the user to enter some commands. This example the only useful command is Stop. To make the background_thread to stop, the atomic STOP bool is used to communicate this condition to the background_thread. When foreground thread reads the STOP command, sets the flag to true which is checked by the background_thread before every new iteration. Main thread waits until background_thread is finished with its current iteration using the join() method.
+
+      Good for simple functions but if the work is stuck doing work for a long time that can result in a delay between the stop command and the program quitting.
+
+    - 1_2_2 - Example: Progress Reporting:
+      atomic_load_and_store_progress_reporting()
+      Using scoped threads in this function which will automatically join threads and allow us to borrow local variables. Everytime the background_thread finishes proccessing an item, it stores the number of processed items in AtomicUsize while the main thread shows that number to the user to inform them of progress around once per second. When the main thread sees 100 items have been processed, it exits scope which then joins the background_thread and informs the user everything is done.
+      - 1_2_2_1 - Synchronisation:
+        Once the last item is processed, might take up to a full second for the main thread to know adding unnecessary delay at the end. Can use thread parking to wake the main thread from its sleep when there is new information it might need.
+
+    - 1_2_3 - Example: Lazy Initialisation
+      Getting value (x) from reading a file, obtaining from operating system or calculating another way that is expected to be constant during a run of the program. Since it isn't expected to change, it can be requested or calculated only the first time it's needed and remember the result. The first thread that needs it will have to calculate the value but then store it in an atomic static to make it available to all threads and itself for later.
+      The first thread to call atomic_load_and_store_lazy_initialisation() will check static X and see it's still zero then calculate its value and store the result back into the static to make it available for later. Any call later will see static as non-zero and return immediately.
+
+      If a second thread calls atomic_load_and_store_lazy_initialisation() while the first one is still calculating, the second thread will also see zero and calculate in parallel. One thread will overwrite the result of the other thread. This is called a race condition.
+
+      If the calculation is expected to take a long time, it's better if threads ait while the first thread is stil initialising STATIC_X to avoid wasting processing time. Could implement thread parking. Rust provides std::sync::Once and std::sync::OnceLock.
+
+  - 1_3 - Fetch-and-Modify Operations:
+
+    These operations modify the atomic variable but also load (fetch) the original value as a single atomic operation.
+
+    Most commonly used ones are fetch_add and fetch_sub which perfom addition and subtraction. fetch_or and fetch_and are bitwise operations, fetch_max and fetch_min which can be used to keep a running maximum or minimum.
+    - fetch_add: atomically add
+    - fetch_sub: atomically subtract
+    - fetch_or: bitwise or
+    - fetch_and: bitwise and
+    - fetch_nand: bitwise nand
+    - fetch_xor: bitwise xor
+    - fetch_max: maximum
+    - fetch_min: minimum
+    - fetch_store
+
+    swap just stores a new value regardless of the old value. swap is fetch_store.
+    Example: atomic_fetch_and_modify_fetch_example(). fetch_add operation incremented a from 100 to 250 but also returned the old value of 100. Next operations will see the value of 250.
+
+    The return value from these operations isn't always relevant, only need the operation to be applied to the atomic value but aren't interested in the value itself. Can ignore the return value. fetch_add and fetch_sub implement wrapping behaviour for overflows.
+    - 1_3_1 - Progress Reporting from multiple threads

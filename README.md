@@ -188,3 +188,54 @@
   RwLockReadGuard implements DerefMut to behave like an exclusive reference. Effectively the multi-threaded version of RefCell. Dynamically tracking number of references to make sure the borrow rules are upheld.
 
   Mutex<T> & RwLock<T> require T to Send. The can e used to send a T to another thread. RwLock<T> requires T to also implement Sync because it allows multiple threads to hold a shared reference (&T) to the protected data.
+
+### Waiting: Parking and Condition Values
+
+- 15: Waiting: Parking and Condition Values:
+  When data is mutated by multiple threads there are many situations where they would need to wait for some event for some condition about the data to become true e.g. have a Mutex protecting a vec might want to wait until it contains anything.
+
+  While a mutex allows threads to wait until it becomes unlocked, it doesn't provide funtionality for waiting for any other conditions. If mutex was the only option, would have to keep locking the mutex to repeatedly check if there is anything in the Vec.
+
+#### Thread Parking:
+
+- 15_1: Thread Parking:
+  A thread can park itself (puts it to sleep), stopping it from consuming any CPU cycles. Another thread can then unpack the parked thread.
+
+  std::thread::park(). For unparking, call unpark() on a Thread object representing the thread want to unpark. Object can be obtained from the join handle returned by spawn or by the thread through std::thread::current().
+
+  thread_parking() uses a mutex to share a queue between 2 threads. A new spawned thread will consume items from the queue while the main thread will insert a new item into the queue every second. Thread parking is used to make the consuming thread wait when the queue is empty.
+
+  loop will remove all items from the queue infinitely. if the VecDeque is empty, the thread goes to sleep (parked). If it gets unparked, the park() call retuns and the loop continues popping items from the queue.
+
+  The producing thread produces a new number every second by pushing into the queue. Everytime it adds an item it uses the unpark() on the Thread object that refers to the consuming thread to unpark it. Consuming thread gets woken up to process the new element.
+
+  calling unpark() before the thread parks doesn't get lost. The request to unpark is still recorded and the next time the thread tries to park it clears that request and directly continues without going to sleep.
+  - Consuming thread (consume_thread) locks the queue
+  - consume_thread tries to pop an item from the queue but it's empty returning None
+  - consume_thread unlocks the queue
+  - producing thread (producing_thread) locks the queue
+  - producing_thread pushes a new item onto the queue
+  - producing_thread unlocks the queue again
+  - producing_thread calls unpark to notify consume_thread that there are new items
+  - consume_thread calls park to go to sleep to wait for more items
+
+  Example shows important to only park the thread if we have seen the queue empty rather than park after every item processed. unpark() gets saved for the next park() call. unpark requests don't stack up. Calling unpark() twice and then calling park() clears the request and returns directly but the second one goes to sleep. This means we only park the thread if we've seen the queue is empty rather than parking it after every processed item.
+
+  If unpark() is called right after a park() returns but before the queue gets locked and emptied out, the unpark() call was unnecessary but causes the next park() call to instantly return. This makes results in the empty queue getting locked and unlocked an extra time. This is good for simple data. For complex data and multiple consumer threads taking items from the same queue, the producer thread would have no way of knowing which of the consuming threads is waiting and should be woken up. The poducer thread will have to know exactly when a consumer is waiting and what cndition it's waiting for.
+
+#### Condition Variables
+
+- 16: Condition Variables
+  These are a more commonly used option for waiting for something to happen to data protected by a mutex. These have 2 basic operations:
+  - Wait
+  - Notify
+
+  Threads can wait on a condition variable after they can be woken up when another thread notifies that same condition variable. Multiple threads can wait on the same condition variable and can either be sent to one waiting thread or to all of them. We can create a condition variable for specific events or conditions we want e.g. queue is empty. Then wait on that condition. Any thread that causes that event or condition to happen notifies the condition variable without having to know which or how many threads are interested in that notification.
+
+  To avoid the issue of missing notifications from unlocing a mutex and waiting for a condition variable, condition variables provide a way to atomically unlock the mutex and start waiting.
+
+  std::sync::Condvar, method wait() takes a MutexGuard that proves we've locked a mutex. It first unlocks the mutex and goes to sleep. When woken up later, it re-locks the mutex and returns a new MutexGuard which proves the mutex is locked again. It's got 2 notify functions:
+  - notify_one: to wake up just one waiting thread if there is one
+  - notify_all: wakes all of them up
+
+  Function condition_variables

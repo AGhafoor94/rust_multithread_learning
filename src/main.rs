@@ -354,9 +354,10 @@ fn thread_parking() {
     })
 }
 fn condition_variables() {
+    // mutex containing the queue
     let mutex_queue: std::sync::Mutex<std::collections::VecDeque<i32>> =
         std::sync::Mutex::new(std::collections::VecDeque::new());
-
+    // condvar (condition variable) to signal / communicate non empty queue
     let condvar_not_empty: std::sync::Condvar = std::sync::Condvar::new();
 
     thread::scope(|s| {
@@ -364,13 +365,15 @@ fn condition_variables() {
             loop {
                 let mut locked_queue: std::sync::MutexGuard<'_, std::collections::VecDeque<i32>> =
                     mutex_queue.lock().unwrap();
-                let queue_item = loop {
+                let queue_item: i32 = loop {
                     if let Some(queue_item) = locked_queue.pop_front() {
                         break queue_item;
                     } else {
+                        // passing in the std::sync::MutexGuard to the wait method
                         locked_queue = condvar_not_empty.wait(locked_queue).unwrap();
                     }
                 };
+                // dropping the guard and still processing the item
                 drop(locked_queue);
                 dbg!(queue_item);
             }
@@ -378,6 +381,7 @@ fn condition_variables() {
 
         for i in 0.. {
             mutex_queue.lock().unwrap().push_back(i);
+            // signal to notify the thread not empty. 1 thread only
             condvar_not_empty.notify_one();
             thread::sleep(Duration::from_secs(1));
         }

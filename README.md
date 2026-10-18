@@ -238,4 +238,18 @@
   - notify_one: to wake up just one waiting thread if there is one
   - notify_all: wakes all of them up
 
-  Function condition_variables
+  Function condition_variables. A few things changed from thread_parking():
+  - now have a Mutex containing the queue and a Condvar to communicate the "non empty" condition
+  - now don't need to know which thread to wake up so don't need to store the return value from spawn(). just to notify the consumer through the condition variable with notify_one().
+  - unlocking, waiting and re-locking is done by wait(). Passing the MutexGuard to the wait method while still dropping it and processing the item
+
+  Now can spawn as many consuming threads and spawn more later without changing anything. The condition variable takes care of delivering the notifications to whichever thread is interested.
+  If there is a more complicated system with threads that are interested in different conditions, we could define a condvar for each condition e.g. defining one to indicate the queue isn't empty and another to indicate it's empty. Then each thread would wait for which condition is relevant to what they are doing.
+
+  Normally the Condvar is used together with a single Mutex. If 2 threads try to concurrently wait on a condition variable using 2 different mutexes, it might cause it to panic. Condvar is only works with a Mutex but for most use cases this is ok.
+
+  thread::park() and Condvar::wait() also have a variant with a time limit:
+  - thread::park_timeout()
+  - Condvar::wait_timeout().
+
+  Take in Duration arg. Time after which it should give up waiting for a notification and unconditionally wake up.

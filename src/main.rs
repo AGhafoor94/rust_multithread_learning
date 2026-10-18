@@ -463,11 +463,39 @@ fn example_process_item(i: i32) {
     println!("PROCESSING ITEM: {i}");
 }
 fn atomic_load_and_store_lazy_initialisation() -> u64 {
-    static X: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+    static STATIC_X: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let mut mutable_x: u64 = X.load(std::sync::atomic::Ordering::Relaxed);
     if mutable_x == 0 {
         mutable_x = mutable_x + 100;
-        X.store(mutable_x, std::sync::atomic::Ordering::Relaxed);
+        STATIC_X.store(mutable_x, std::sync::atomic::Ordering::Relaxed);
     }
     mutable_x
 }
+
+/*
+    Function signature using AtomicI32
+
+    impl AmoticI32 {
+        pub fn fetch_add(&self, v: i32, ordering: Ordering) -> i32;
+        pub fn fetch_sub(&self, v: i32, ordering: Ordering) -> i32;
+        pub fn fetch_or(&self, v: i32, ordering: Ordering) -> i32;
+        pub fn fetch_and(&self, v: i32, ordering: Ordering) -> i32;
+        pub fn fetch_nand(&self, v: i32, ordering: Ordering) -> i32;
+        pub fn fetch_xor(&self, v: i32, ordering: Ordering) -> i32;
+        pub fn fetch_max(&self, v: i32, ordering: Ordering) -> i32;
+        pub fn fetch_min(&self, v: i32, ordering: Ordering) -> i32;
+        pub fn swap(&self, v: i32, ordering: Ordering) -> i32; // fetch_store
+    }
+
+    swap just stores a new value regardless of the old value. swap is fetch_store
+*/
+
+fn atomic_fetch_and_modify_fetch_example() {
+    let a: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(100);
+    let b: i32 = a.fetch_add(152, std::sync::atomic::Ordering::Relaxed);
+    let c: i32 = a.load(std::sync::atomic::Ordering::Relaxed);
+
+    assert_eq!(b, 100);
+    assert_eq!(c, 250);
+}
+fn atomic_fetch_and_modify_progress_reporting_from_multiple_threads() {}

@@ -295,6 +295,32 @@ O'Reilly - Rust Atomics and Locks by Mara Bos
       Using scoped threads in this function which will automatically join threads and allow us to borrow local variables. Everytime the background_thread finishes proccessing an item, it stores the number of processed items in AtomicUsize while the main thread shows that number to the user to inform them of progress around once per second. When the main thread sees 100 items have been processed, it exits scope which then joins the background_thread and informs the user everything is done.
       - 1_2_2_1 - Synchronisation:
         Once the last item is processed, might take up to a full second for the main thread to know adding unnecessary delay at the end. Can use thread parking to wake the main thread from its sleep when there is new information it might need.
+
     - 1_2_3 - Example: Lazy Initialisation
       Getting value (x) from reading a file, obtaining from operating system or calculating another way that is expected to be constant during a run of the program. Since it isn't expected to change, it can be requested or calculated only the first time it's needed and remember the result. The first thread that needs it will have to calculate the value but then store it in an atomic static to make it available to all threads and itself for later.
-      The first thread to call atomic_load_and_store_lazy_initialisation() will check static X and see it's still zero.
+      The first thread to call atomic_load_and_store_lazy_initialisation() will check static X and see it's still zero then calculate its value and store the result back into the static to make it available for later. Any call later will see static as non-zero and return immediately.
+
+      If a second thread calls atomic_load_and_store_lazy_initialisation() while the first one is still calculating, the second thread will also see zero and calculate in parallel. One thread will overwrite the result of the other thread. This is called a race condition.
+
+      If the calculation is expected to take a long time, it's better if threads ait while the first thread is stil initialising STATIC_X to avoid wasting processing time. Could implement thread parking. Rust provides std::sync::Once and std::sync::OnceLock.
+
+  - 1_3 - Fetch-and-Modify Operations:
+
+    These operations modify the atomic variable but also load (fetch) the original value as a single atomic operation.
+
+    Most commonly used ones are fetch_add and fetch_sub which perfom addition and subtraction. fetch_or and fetch_and are bitwise operations, fetch_max and fetch_min which can be used to keep a running maximum or minimum.
+    - fetch_add: atomically add
+    - fetch_sub: atomically subtract
+    - fetch_or: bitwise or
+    - fetch_and: bitwise and
+    - fetch_nand: bitwise nand
+    - fetch_xor: bitwise xor
+    - fetch_max: maximum
+    - fetch_min: minimum
+    - fetch_store
+
+    swap just stores a new value regardless of the old value. swap is fetch_store.
+    Example: atomic_fetch_and_modify_fetch_example(). fetch_add operation incremented a from 100 to 250 but also returned the old value of 100. Next operations will see the value of 250.
+
+    The return value from these operations isn't always relevant, only need the operation to be applied to the atomic value but aren't interested in the value itself. Can ignore the return value. fetch_add and fetch_sub implement wrapping behaviour for overflows.
+    - 1_3_1 - Progress Reporting from multiple threads
